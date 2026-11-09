@@ -1,0 +1,8 @@
+langgraph>=1.0
+langchain-openai>=1.0
+python-dotenv>=1.0
+langchain-core>=1.0
+pandas>=2.0
+numpy>=1.26
+matplotlib>=3.8
+seaborn>=0.13

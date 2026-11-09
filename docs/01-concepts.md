@@ -1,0 +1,97 @@
+# 1. Concepts
+
+## What is an agent?
+
+A plain LLM call is one question and one answer. An **agent** is an LLM placed in a **loop** with
+**tools**, so it can act, look at what happened, and decide what to do next.
+
+## The four building blocks
+
+The commonly used definition of an agent is **Reasoning + Context + Memory + Tools**:
+
+```mermaid
+flowchart LR
+    U([User question]) --> C
+    subgraph Agent
+        C[Context<br/>instructions + history<br/>what the model sees now]
+        R[Reasoning<br/>the model decides<br/>the next step]
+        T[Tools<br/>what it can do]
+        M[(Memory<br/>what is kept beyond<br/>one model call)]
+    end
+    C --> R
+    R -->|tool call| T
+    T -->|result added to context| C
+    C <-->|saved / restored| M
+    R -->|plain text| F([Final answer])
+```
+
+| Block | The question it answers | In this project | Where |
+|---|---|---|---|
+| **Reasoning** | What should happen next? | The LLM. Optionally a `--plan` step before acting and a `--review` step after. | `make_llm()` in [config.py](../config.py); `agent_node`, `plan_node`, `review_node` in [agent.py](../agent.py) |
+| **Context** | What does the model see *right now*? | The system prompt (instructions) + the message history, including every tool result. Limited by the context window; `--keep-outputs` trims it. | [prompts/system.md](../prompts/system.md); `state["messages"]`; `trim_history` |
+| **Memory** | What is kept beyond a single model call? | Short-term: the checkpointer (per `thread_id`) and the sandbox variables. Long-term: not implemented. | `MemorySaver` in `build_graph`; `NAMESPACE` in [tools.py](../tools.py) |
+| **Tools** | What can it do besides talk? | `describe_dataset`, `run_python`, `save_report`. | [tools.py](../tools.py) |
+
+The **loop** is what connects them: build the context, let the model reason, run the tools it asked
+for, put the results back into the context, repeat.
+
+### Context versus memory
+
+These two are easy to mix up:
+
+- **Context** is what is inside the model's window for *this one call*. It is rebuilt and re-sent on
+  every step. If it is not in the context, the model does not know it.
+- **Memory** is what is **stored** outside the model so it can outlive a call (or a run). Memory
+  only helps once something from it is **loaded back into the context**.
+
+The model itself is stateless. The checkpointer stores the message history (memory) and each turn
+loads it into the context. `--keep-outputs` shapes the context without deleting anything from
+memory: the full history stays stored, only the copy sent to the model is trimmed.
+
+### Instructions are part of the context
+
+The system prompt is the instruction part of the context: the one piece you write as plain text.
+It is a file (`prompts/system.md`) so you can change the agent's behaviour without touching code,
+and it is kept free of dataset-specific facts: what the data contains comes from the tools
+(`describe_dataset`), not from the prompt.
+
+## Vocabulary
+
+| Term | Meaning here |
+|---|---|
+| **Message** | One entry in the conversation. Four kinds: `SystemMessage` (instructions), `HumanMessage` (the user), `AIMessage` (the model), `ToolMessage` (a tool result). |
+| **Tool call** | An `AIMessage` that contains a request like "call `run_python` with `code=...`" instead of (or next to) text. It has an `id`. |
+| **Tool result** | A `ToolMessage` carrying the function's return value, matched to the call by `tool_call_id`. |
+| **State** | The data the loop carries from step to step. Here: the list of messages (plus a few counters). |
+| **Agentic loop** | Repeat: call model → if it asked for tools, run them and append results → call model again. Stop when it answers in text. |
+| **Termination** | The loop ends when the model replies without tool calls. A step limit protects against loops that never end. |
+| **Context** | Everything the model is given for one call: instructions, history, tool results. |
+| **Context window** | The maximum text the model can read in one call. The whole history must fit. |
+| **Thread** | One conversation, identified by a `thread_id`. |
+| **Checkpointer** | Saves the state after each step, keyed by thread, so a later question continues the conversation. |
+| **Sandbox** | The place where model-written code runs. |
+
+## Memory: what is handled and what is not
+
+"Memory" means several different things. This project handles some and deliberately leaves
+the rest as documented limits.
+
+| Kind of memory | Handled? | How |
+|---|---|---|
+| **Within one question** (the steps so far) | Yes | The message list in the state. `--keep-outputs` keeps it small. |
+| **Across questions in one session** | Yes | `MemorySaver` checkpointer, keyed by `thread_id`. |
+| **Variables in the sandbox** (`df`, `clean`...) | Yes, in process | The `NAMESPACE` dict in `tools.py`. It is separate from the checkpoint. |
+| **Across restarts** | No | `MemorySaver` lives in RAM. A persistent checkpointer would restore messages, but the sandbox variables would still be gone. See [06-architecture.md](06-architecture.md#state-lives-in-two-places). |
+| **Long-term facts across sessions** | No | Would need a store or a notes file the agent reads and writes. A good exercise. |
+| **Very long sessions** | Partly | `--keep-outputs` trims old tool outputs; user and model messages still grow. Eventually you need summarization. |
+
+A key point: **the model has no memory of its own.** If it is not in the messages sent this turn,
+the model does not know it.
+
+## Why a loop, not one big prompt?
+
+The agent cannot know the answer in advance. It must look at the data, form a hypothesis, test it,
+and see the result before deciding the next move. Each tool result changes what the right next
+step is. That is why the output of one step must flow back into the next call.
+
+Next: [02-agentic-loop.md](02-agentic-loop.md) shows this on a real run.

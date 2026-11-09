@@ -1,0 +1,11 @@
+#ignore data and charts
+/data
+/charts
+
+# secrets
+.env
+
+# backup folder
+/backup
+
+/reports

@@ -1,0 +1,453 @@
+📊 Data Analyst Agent (manual loop) (gpt-5.4-nano) -- dataset: data/sales.csv
+
+▶ Step 1: describe_dataset
+(no arguments)
+   tokens: in=829 out=13
+◀ output
+Rows: 15,357   Columns: 11
+Exact duplicate rows: 40
+
+Columns:
+- order_id (int64): 0 nulls, 15317 distinct, min=100000, mean=107659.13, max=115316
+- order_date (str): 0 nulls, 273 distinct, e.g. ['2026-01-30', '2026-04-07', '2026-03-04']
+- region (str): 0 nulls, 5 distinct, values={'South': 3855, 'West': 3838, 'East': 3838, 'North': 3811, 'east ': 15}
+- channel (str): 25 nulls, 3 distinct, values={'Online': 8221, 'Retail': 4727, 'Partner': 2384, nan: 25}
+- product_line (str): 0 nulls, 3 distinct, values={'Basic': 7762, 'Plus': 5069, 'Pro': 2526}
+- units (int64): 0 nulls, 8 distinct, min=0, mean=3.04, max=7
+- unit_price (float64): 0 nulls, 3 distinct, min=49, mean=124.75, max=349
+- discount (float64): 0 nulls, 6 distinct, min=0, mean=0.05, max=0.3
+- revenue (float64): 0 nulls, 100 distinct, min=0, mean=350.54, max=1954.4
+- cogs (float64): 0 nulls, 22 distinct, min=0, mean=175.65, max=1190
+- status (str): 0 nulls, 2 distinct, values={'fulfilled': 15172, 'backordered': 185}
+
+First 3 rows:
+ order_id order_date region channel product_line  units  unit_price  discount  revenue  cogs    status
+   101546 2026-01-30   West  Retail        Basic      4        49.0       0.1    176.4  88.0 fulfilled
+   105300 2026-04-07   East  Online        Basic      5        49.0       0.1    220.5 110.0 fulfilled
+   103401 2026-03-04   West Partner         Plus      5       129.0       0.0    645.0 305.0 fulfilled
+
+▶ Step 2: run_python
+# Clean: normalize region labels and remove duplicate rows
+clean = df.copy()
+clean['region'] = clean['region'].astype(str).str.strip()
+# drop exact duplicates
+clean = clean.drop_duplicates()
+
+# Parse dates and create quarter
+clean['order_date'] = pd.to_datetime(clean['order_date'], errors='coerce')
+clean = clean[clean['order_date'].notna()]
+clean['quarter'] = clean['order_date'].dt.to_period('Q')
+
+# Identify Q2 and Q3 present
+print('Quarters:', sorted(clean['quarter'].unique().astype(str))[:10])
+print('Rows after cleaning:', len(clean))
+print('Region distinct:', clean['region'].value_counts().to_dict())
+
+   tokens: in=1,409 out=180
+◀ output
+Quarters: ['2026Q1', '2026Q2', '2026Q3']
+Rows after cleaning: 15317
+Region distinct: {'South': 3846, 'West': 3828, 'East': 3828, 'North': 3800, 'east': 15}
+
+▶ Step 3: run_python
+# Normalize 'east ' to 'East' and recompute
+clean['region'] = clean['region'].replace({'east':'East'})
+
+# Aggregate revenue by region and quarter
+agg = (clean.groupby(['region','quarter'])
+       .agg(revenue=('revenue','sum'), orders=('order_id','nunique'), units=('units','sum'),
+            discount_avg=('discount','mean'))
+       .reset_index())
+
+def rev_change(q2,q3):
+    m = agg.pivot(index='region', columns='quarter', values='revenue')
+
+m = agg.pivot(index='region', columns='quarter', values='revenue')
+print(m)
+
+# Compute Q3 vs Q2 % change
+m['abs_change'] = m['2026Q3'] - m['2026Q2']
+m['pct_change'] = m['abs_change']/m['2026Q2']
+print('\nQ3 vs Q2 revenue change:')
+print(m[['abs_change','pct_change']].sort_values('pct_change'))
+
+   tokens: in=1,666 out=253
+✗ error -- the agent will read it and self-correct
+quarter     2026Q1     2026Q2     2026Q3
+region                                  
+East     427646.65  458179.65  317557.95
+North    459003.00  482867.00  448114.00
+South    452426.35  451667.00  473027.95
+West     452522.90  486260.45  460707.60
+
+ERROR:
+Traceback (most recent call last):
+  File "<project>\.venv\Lib\site-packages\pandas\core\indexes\base.py", line 3816, in get_loc
+    return self._engine.get_loc(casted_key)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "pandas/_libs/index.pyx", line 172, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/index.pyx", line 201, in pandas._libs.index.IndexEngine.get_loc
+KeyError: '2026Q2'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<project>\tools.py", line 88, in run_python
+    exec(code, NAMESPACE)
+    ~~~~^^^^^^^^^^^^^^^^^
+  File "<string>", line 18, in <module>
+  File "<project>\.venv\Lib\site-packages\pandas\core\frame.py", line 4330, in __getitem__
+    indexer = self.columns.get_loc(key)
+KeyError: '2026Q2'
+
+▶ Step 4: run_python
+# Recompute after the region label normalization; ensure quarters columns exist
+clean['quarter'] = clean['order_date'].dt.to_period('Q').astype(str)
+agg = (clean.groupby(['region','quarter'])
+       .agg(revenue=('revenue','sum'), orders=('order_id','nunique'), units=('units','sum'), discount_avg=('discount','mean'))
+       .reset_index())
+
+m = agg.pivot(index='region', columns='quarter', values='revenue')
+print(m.columns)
+
+m = m.loc[:, ['2026Q2','2026Q3']]
+m['abs_change'] = m['2026Q3'] - m['2026Q2']
+m['pct_change'] = m['abs_change']/m['2026Q2']
+print('\nQ3 vs Q2 revenue change (%):')
+print(m[['abs_change','pct_change']].sort_values('pct_change'))
+
+   tokens: in=2,314 out=222
+◀ output
+Index(['2026Q1', '2026Q2', '2026Q3'], dtype='str', name='quarter')
+
+Q3 vs Q2 revenue change (%):
+quarter  abs_change  pct_change
+region                         
+East     -140621.70   -0.306914
+North     -34753.00   -0.071972
+West      -25552.85   -0.052550
+South      21360.95    0.047294
+
+▶ Step 5: run_python
+# Investigate why East underperformed: decompose into units and price (revenue per unit), and mix by channel/product/status
+# Create additional metrics
+clean['revenue_per_unit'] = clean['revenue'] / clean['units'].replace({0: np.nan})
+
+# Market metrics for East in Q2 vs Q3
+east = clean[clean['region']=='East']
+metrics = (east.groupby('quarter')
+           .agg(revenue=('revenue','sum'), units=('units','sum'),
+                aov=('revenue', lambda s: s.sum()/s.shape[0]),
+                revenue_per_unit=('revenue_per_unit','mean'),
+                discount_avg=('discount','mean'),
+                orders=('order_id','nunique'))
+           .reset_index())
+print(metrics)
+
+# Channel contribution change
+chan = (east.groupby(['quarter','channel'])
+        .agg(revenue=('revenue','sum'), units=('units','sum'), orders=('order_id','nunique'))
+        .reset_index())
+# pivot for revenue
+chan_p = chan.pivot(index='channel', columns='quarter', values='revenue')
+chan_p['abs_change']=chan_p['2026Q3']-chan_p['2026Q2']
+chan_p['pct_change']=chan_p['abs_change']/chan_p['2026Q2']
+print('\nEast channel Q3 vs Q2 revenue change:')
+print(chan_p.sort_values('abs_change'))
+
+# Product contribution change
+prod = (east.groupby(['quarter','product_line'])
+        .agg(revenue=('revenue','sum'), units=('units','sum'))
+        .reset_index())
+prod_p = prod.pivot(index='product_line', columns='quarter', values='revenue')
+prod_p['abs_change']=prod_p['2026Q3']-prod_p['2026Q2']
+prod_p['pct_change']=prod_p['abs_change']/prod_p['2026Q2']
+print('\nEast product Q3 vs Q2 revenue change:')
+print(prod_p.sort_values('abs_change'))
+
+# Status impact
+stat = (east.groupby(['quarter','status'])
+        .agg(revenue=('revenue','sum'), orders=('order_id','nunique'), units=('units','sum'))
+        .reset_index())
+stat_p = stat.pivot(index='status', columns='quarter', values='revenue')
+stat_p['abs_change']=stat_p['2026Q3']-stat_p['2026Q2']
+stat_p['pct_change']=stat_p['abs_change']/stat_p['2026Q2']
+print('\nEast status Q3 vs Q2 revenue change:')
+print(stat_p.sort_values('abs_change'))
+
+   tokens: in=2,649 out=634
+◀ output
+quarter    revenue  units         aov  revenue_per_unit  discount_avg  orders
+0  2026Q1  427646.65   3520  360.578963        124.445784      0.030101    1186
+1  2026Q2  458179.65   3838  356.005944        120.799573      0.030730    1287
+2  2026Q3  317557.95   3526  231.794124         89.209899      0.028394    1370
+
+East channel Q3 vs Q2 revenue change:
+quarter     2026Q1     2026Q2     2026Q3  abs_change  pct_change
+channel                                                         
+Online   233727.65  246410.15  181093.25   -65316.90   -0.265074
+Retail   134070.80  135236.70   87077.40   -48159.30   -0.356111
+Partner   57910.15   76068.95   49106.10   -26962.85   -0.354453
+
+East product Q3 vs Q2 revenue change:
+quarter          2026Q1     2026Q2     2026Q3  abs_change  pct_change
+product_line                                                         
+Pro           197586.35  208422.80   57305.80   -151117.0   -0.725050
+Basic          84012.95   93989.35   98124.95      4135.6    0.044001
+Plus          146047.35  155767.50  162127.20      6359.7    0.040828
+
+East status Q3 vs Q2 revenue change:
+quarter         2026Q1     2026Q2     2026Q3  abs_change  pct_change
+status                                                              
+fulfilled    427646.65  458179.65  317557.95   -140621.7   -0.306914
+backordered        NaN        NaN       0.00         NaN         NaN
+
+▶ Step 6: run_python
+# Create charts
+import matplotlib.ticker as mtick
+
+CHART_DIR = '/mnt/data'
+
+# 1) Bar chart of Q3 vs Q2 revenue % change by region
+region_changes = (m[['pct_change']].copy())
+region_changes = region_changes.sort_values('pct_change')
+plt.figure(figsize=(7,4))
+colors=[]
+for v in region_changes['pct_change']:
+    colors.append('#d62728' if v==region_changes['pct_change'].min() else '#9aa0a6')
+# bar from zero; use absolute bars for pct? We'll use revenue abs change instead
+
+# We'll do abs revenue change
+rev_abs = m[['abs_change']].sort_values('abs_change')
+plt.figure(figsize=(7,4))
+bar_colors=['#d62728' if r==rev_abs.index[0] else '#9aa0a6' for r in rev_abs.index]
+plt.bar(rev_abs.index, rev_abs['abs_change'], color=bar_colors)
+plt.axhline(0,color='black',linewidth=0.8)
+plt.title('Regions revenue changed from Q2 to Q3 (absolute)')
+plt.ylabel('Revenue change ($)')
+plt.gca().yaxis.set_major_formatter(mtick.StrMethodFormatter('${x:,.0f}'))
+for i,v in enumerate(rev_abs['abs_change']):
+    plt.text(i, v + (5000 if v>=0 else -5000), f"{v/1000:.0f}k", ha='center', va='bottom' if v>=0 else 'top', fontsize=9)
+plt.grid(axis='y', alpha=0.2)
+plt.spines[['top','right']].set_visible(False)
+plt.tight_layout()
+plt.savefig(f"{CHART_DIR}/region_abs_change_q3_vs_q2.png", dpi=150, bbox_inches='tight')
+plt.close()
+
+# 2) East decomposition: units and revenue per unit
+# compute by quarter for East
+m_e = (east.groupby('quarter')
+       .agg(revenue=('revenue','sum'), units=('units','sum')))
+# compute revenue per unit
+m_e['rev_per_unit']=m_e['revenue']/m_e['units']
+plt.figure(figsize=(7,4))
+plt.plot(m_e.index, m_e['rev_per_unit'], marker='o', color='#1f77b4', linewidth=2)
+plt.title('East Q3 underperformance driven by lower revenue per unit')
+plt.xlabel('Quarter')
+plt.ylabel('Revenue per unit ($)')
+plt.gca().yaxis.set_major_formatter(mtick.StrMethodFormatter('${x:,.0f}'))
+plt.grid(alpha=0.2)
+plt.spines[['top','right']].set_visible(False)
+plt.tight_layout()
+plt.savefig(f"{CHART_DIR}/east_rev_per_unit_drop.png", dpi=150, bbox_inches='tight')
+plt.close()
+
+# 3) East channel impact bar absolute change
+chan_sort = chan_p[['abs_change']].sort_values('abs_change')
+plt.figure(figsize=(7,4))
+colors=['#d62728' if abs(v)==chan_sort['abs_change'].min() else '#9aa0a6' for v in chan_sort['abs_change']]
+plt.bar(chan_sort.index, chan_sort['abs_change'], color=colors)
+plt.axhline(0,color='black',linewidth=0.8)
+plt.title('East Q3 decline led by Online and Retail revenue')
+plt.ylabel('Revenue change from Q2 to Q3 ($)')
+plt.gca().yaxis.set_major_formatter(mtick.StrMethodFormatter('${x:,.0f}'))
+plt.grid(axis='y', alpha=0.2)
+plt.spines[['top','right']].set_visible(False)
+plt.tight_layout()
+plt.savefig(f"{CHART_DIR}/east_channel_abs_change.png", dpi=150, bbox_inches='tight')
+plt.close()
+
+print('charts saved')
+
+   tokens: in=3,796 out=919
+✗ error -- the agent will read it and self-correct
+ERROR:
+Traceback (most recent call last):
+  File "<project>\tools.py", line 88, in run_python
+    exec(code, NAMESPACE)
+    ~~~~^^^^^^^^^^^^^^^^^
+  File "<string>", line 27, in <module>
+AttributeError: module 'matplotlib.pyplot' has no attribute 'spines'. Did you mean: 'hlines'?
+
+▶ Step 7: run_python
+import matplotlib.ticker as mtick
+CHART_DIR = '/mnt/data'
+
+# 1)
+rev_abs = m[['abs_change']].sort_values('abs_change')
+plt.figure(figsize=(7,4))
+bar_colors=['#d62728' if r==rev_abs.index[0] else '#9aa0a6' for r in rev_abs.index]
+plt.bar(rev_abs.index, rev_abs['abs_change'], color=bar_colors)
+plt.axhline(0,color='black',linewidth=0.8)
+plt.title('Regions revenue change from Q2 to Q3')
+plt.ylabel('Revenue change ($)')
+plt.gca().yaxis.set_major_formatter(mtick.StrMethodFormatter('${x:,.0f}'))
+for i,v in enumerate(rev_abs['abs_change']):
+    plt.text(i, v + (5000 if v>=0 else -5000), f"{v/1000:.0f}k", ha='center', va='bottom' if v>=0 else 'top', fontsize=9)
+plt.grid(axis='y', alpha=0.2)
+ax=plt.gca()
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+plt.tight_layout()
+plt.savefig(f"{CHART_DIR}/region_abs_change_q3_vs_q2.png", dpi=150, bbox_inches='tight')
+plt.close()
+
+# 2) East rev per unit
+m_e = east.groupby('quarter').agg(revenue=('revenue','sum'), units=('units','sum'))
+m_e['rev_per_unit']=m_e['revenue']/m_e['units']
+plt.figure(figsize=(7,4))
+plt.plot(m_e.index, m_e['rev_per_unit'], marker='o', color='#1f77b4', linewidth=2)
+plt.title('East revenue per unit dropped in Q3')
+plt.xlabel('Quarter')
+plt.ylabel('Revenue per unit ($)')
+plt.gca().yaxis.set_major_formatter(mtick.StrMethodFormatter('${x:,.0f}'))
+plt.grid(alpha=0.2)
+ax=plt.gca(); ax.spines['top'].set_visible(False); ax.spines['right'].set_visible(False)
+plt.tight_layout()
+plt.savefig(f"{CHART_DIR}/east_rev_per_unit_drop.png", dpi=150, bbox_inches='tight')
+plt.close()
+
+# 3) East channel abs change
+chan_sort = chan_p[['abs_change']].sort_values('abs_change')
+plt.figure(figsize=(7,4))
+bar_colors=['#d62728' if idx==chan_sort.index[0] else '#9aa0a6' for idx in chan_sort.index]
+plt.bar(chan_sort.index, chan_sort['abs_change'], color=bar_colors)
+plt.axhline(0,color='black',linewidth=0.8)
+plt.title('East Q3 decline led by Online revenue')
+plt.ylabel('Revenue change from Q2 to Q3 ($)')
+plt.gca().yaxis.set_major_formatter(mtick.StrMethodFormatter('${x:,.0f}'))
+plt.grid(axis='y', alpha=0.2)
+ax=plt.gca(); ax.spines['top'].set_visible(False); ax.spines['right'].set_visible(False)
+plt.tight_layout()
+plt.savefig(f"{CHART_DIR}/east_channel_abs_change.png", dpi=150, bbox_inches='tight')
+plt.close()
+
+print('charts saved')
+
+   tokens: in=4,821 out=798
+✗ error -- the agent will read it and self-correct
+ERROR:
+Traceback (most recent call last):
+  File "<project>\tools.py", line 88, in run_python
+    exec(code, NAMESPACE)
+    ~~~~^^^^^^^^^^^^^^^^^
+  File "<string>", line 20, in <module>
+  File "<project>\.venv\Lib\site-packages\matplotlib\pyplot.py", line 1346, in savefig
+    res = fig.savefig(fname, **kwargs)  # type: ignore[func-returns-value]
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/data/region_abs_change_q3_vs_q2.png'
+
+▶ Step 8: run_python
+import os, pathlib
+CHART_DIR = '/mnt/data'
+os.makedirs(CHART_DIR, exist_ok=True)
+print('chart dir exists', os.path.exists(CHART_DIR))
+
+   tokens: in=5,798 out=55
+◀ output
+chart dir exists True
+
+▶ Step 9: run_python
+import matplotlib.ticker as mtick
+CHART_DIR = '/mnt/data'
+
+rev_abs = m[['abs_change']].sort_values('abs_change')
+plt.figure(figsize=(7,4))
+bar_colors=['#d62728' if r==rev_abs.index[0] else '#9aa0a6' for r in rev_abs.index]
+plt.bar(rev_abs.index, rev_abs['abs_change'], color=bar_colors)
+plt.axhline(0,color='black',linewidth=0.8)
+plt.title('Regions revenue change from Q2 to Q3')
+plt.ylabel('Revenue change ($)')
+plt.gca().yaxis.set_major_formatter(mtick.StrMethodFormatter('${x:,.0f}'))
+for i,v in enumerate(rev_abs['abs_change']):
+    plt.text(i, v + (5000 if v>=0 else -5000), f"{v/1000:.0f}k", ha='center', va='bottom' if v>=0 else 'top', fontsize=9)
+plt.grid(axis='y', alpha=0.2)
+ax=plt.gca(); ax.spines['top'].set_visible(False); ax.spines['right'].set_visible(False)
+plt.tight_layout()
+path1=f"{CHART_DIR}/region_abs_change_q3_vs_q2.png"
+plt.savefig(path1, dpi=150, bbox_inches='tight')
+plt.close()
+print('saved', path1)
+
+m_e = east.groupby('quarter').agg(revenue=('revenue','sum'), units=('units','sum'))
+m_e['rev_per_unit']=m_e['revenue']/m_e['units']
+plt.figure(figsize=(7,4))
+plt.plot(m_e.index, m_e['rev_per_unit'], marker='o', color='#1f77b4', linewidth=2)
+plt.title('East revenue per unit dropped in Q3')
+plt.xlabel('Quarter')
+plt.ylabel('Revenue per unit ($)')
+plt.gca().yaxis.set_major_formatter(mtick.StrMethodFormatter('${x:,.0f}'))
+plt.grid(alpha=0.2)
+ax=plt.gca(); ax.spines['top'].set_visible(False); ax.spines['right'].set_visible(False)
+plt.tight_layout()
+path2=f"{CHART_DIR}/east_rev_per_unit_drop.png"
+plt.savefig(path2, dpi=150, bbox_inches='tight')
+plt.close()
+print('saved', path2)
+
+chan_sort = chan_p[['abs_change']].sort_values('abs_change')
+plt.figure(figsize=(7,4))
+bar_colors=['#d62728' if idx==chan_sort.index[0] else '#9aa0a6' for idx in chan_sort.index]
+plt.bar(chan_sort.index, chan_sort['abs_change'], color=bar_colors)
+plt.axhline(0,color='black',linewidth=0.8)
+plt.title('East Q3 decline led by Online revenue')
+plt.ylabel('Revenue change from Q2 to Q3 ($)')
+plt.gca().yaxis.set_major_formatter(mtick.StrMethodFormatter('${x:,.0f}'))
+plt.grid(axis='y', alpha=0.2)
+ax=plt.gca(); ax.spines['top'].set_visible(False); ax.spines['right'].set_visible(False)
+plt.tight_layout()
+path3=f"{CHART_DIR}/east_channel_abs_change.png"
+plt.savefig(path3, dpi=150, bbox_inches='tight')
+plt.close()
+print('saved', path3)
+
+   tokens: in=5,869 out=807
+◀ output
+saved /mnt/data/region_abs_change_q3_vs_q2.png
+saved /mnt/data/east_rev_per_unit_drop.png
+saved /mnt/data/east_channel_abs_change.png
+
+▶ Step 10: save_report
+{'title': 'Region underperformed in Q3 vs Q2 (driver)', 'markdown': '## Answer\n**East** underperformed in **Q3 vs Q2**. The decline was driven primarily by a sharp drop in **revenue per unit** (i.e., lower price/realization), with **Online** and **Retail** channels also contributing most of the revenue loss; the **Pro** product line fell significantly.\n\n## Evidence\n- Revenue by region (Q2 → Q3): **East $458,179.65 → $317,557.95 (−$140,621.70; −30.7%)**\n- East Q3 vs Q2 operational metrics:\n  - Units: **3,838 → 3,526** (slightly down)\n  - Revenue per unit: **$120.80 → $89.21 (−26.2%)**\n- East product/channel drivers (Q3 vs Q2 revenue change):\n  - **Online:** −$65,316.90\n  - **Retail:** −$48,159.30\n  - **Pro product line:** **−$151,117.00** (while Basic/Plus rose)\n\n## Data notes\n- Cleaned **region** labels by trimming whitespace (e.g., `east ` → `East`).\n- Removed **40 exact duplicate** rows.\n- Derived quarters from `order_date` and filtered to valid parsed dates.\n\n## Charts\n![Regions revenue change from Q2 to Q3](../charts/region_abs_change_q3_vs_q2.png)\n![East revenue per unit dropped in Q3](../charts/east_rev_per_unit_drop.png)\n![East Q3 decline led by Online revenue](../charts/east_channel_abs_change.png)\n'}
+   tokens: in=6,725 out=394
+◀ output
+Report saved to reports\region-underperformed-in-q3-vs-q2-driver.md
+
+══════════════════════════════════════════════════════════════════════
+✅ FINAL ANSWER
+══════════════════════════════════════════════════════════════════════
+**Answer:** The **East** region underperformed in **Q3 vs Q2**. The main reason was a major drop in **revenue per unit** (realization/price), compounded by revenue losses in the **Online** and **Retail** channels and a steep **Pro** product-line decline.
+
+**Evidence:**
+- **East revenue:** **$458,179.65 (Q2)** → **$317,557.95 (Q3)** = **−$140,621.70 (−30.7%)**
+- **East units:** **3,838 → 3,526** (small decline)
+- **East revenue per unit:** **$120.80 → $89.21** (**−26.2%**)
+- **East channel revenue change (Q3 vs Q2):**
+  - **Online:** **−$65,316.90**
+  - **Retail:** **−$48,159.30**
+- **East product-line revenue change (Q3 vs Q2):**
+  - **Pro:** **−$151,117.00** (dominant driver)
+  - **Basic:** **+$4,135.60**
+  - **Plus:** **+$6,359.70**
+
+**Data notes:**
+- Cleaned `region` by trimming whitespace and normalizing `east` → `East`.
+- Dropped **40 exact duplicate** rows.
+- Parsed `order_date` to quarters and kept only rows with valid dates.
+
+**Charts:**
+- `../charts/region_abs_change_q3_vs_q2.png`
+- `../charts/east_rev_per_unit_drop.png`
+- `../charts/east_channel_abs_change.png`
+
+**Report:** `reports/region-underperformed-in-q3-vs-q2-driver.md`
+   tokens: in=7,147 out=372
