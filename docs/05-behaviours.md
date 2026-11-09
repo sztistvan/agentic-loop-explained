@@ -14,7 +14,21 @@ Each teaches one idea.
 | `--prompt FILE` | Prompts are configuration | no |
 | *(always on)* | Token tracking | no |
 
-With everything enabled the graph is:
+## Default graph vs. all flags
+
+Three of the flags add nodes to the graph. Here are both versions, drawn the same way so you can
+compare them. **Default, no flags:** the plain loop.
+
+```mermaid
+flowchart TD
+    START --> agent
+    agent -->|tool calls| tools
+    tools --> agent
+    agent -->|final answer| END
+```
+
+**All flags on:** the same `agent` and `tools` loop, plus three optional nodes drawn with a dashed
+border.
 
 ```mermaid
 flowchart TD
@@ -27,8 +41,21 @@ flowchart TD
     agent -->|final answer| review
     review -->|approved| END
     review -->|problems found| agent
-    agent -->|final answer, no review left| END
+    agent -->|answer after revision| END
+    classDef optional stroke-dasharray:5 4,fill:#faeeda,stroke:#ba7517,color:#412402
+    class plan,approval,review optional
 ```
+
+Dashed nodes exist only when their flag is set:
+
+| Dashed node | Flag | What it adds to the graph |
+|---|---|---|
+| `plan` | `--plan` | runs once before `agent` |
+| `approval` | `--approve` | sits between `agent` and `tools`; can send control back to `agent` |
+| `review` | `--review` | runs when `agent` gives a final answer; can send it back for one revision |
+
+`--max-steps`, `--keep-outputs`, `--prompt` and token tracking do not change the graph. They change
+what the model is told or sees.
 
 Try them together:
 

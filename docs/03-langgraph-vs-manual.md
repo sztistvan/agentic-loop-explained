@@ -64,6 +64,10 @@ flowchart LR
     tools --> agent
 ```
 
+With the optional flags on, extra nodes appear around this loop. See
+[05-behaviours.md](05-behaviours.md#default-graph-vs-all-flags) for the default and the extended
+graph, drawn the same way so they can be compared.
+
 ## Concept mapping
 
 | Hand-written | LangGraph | Notes |
