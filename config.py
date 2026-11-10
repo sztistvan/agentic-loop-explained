@@ -6,6 +6,7 @@ difference between them is the loop itself.
 """
 from __future__ import annotations
 
+import hashlib
 import os
 from pathlib import Path
 
@@ -41,12 +42,29 @@ def make_llm() -> ChatOpenAI:
     )
 
 
+def prompt_path(name_or_path: str) -> Path:
+    """'system' -> prompts/system.md; anything with an extension is used as a path."""
+    path = Path(name_or_path)
+    return path if path.suffix else PROMPT_DIR / f"{name_or_path}.md"
+
+
 def load_prompt(name_or_path: str) -> str:
-    """Read a prompt from disk. 'system' -> prompts/system.md; a path is used as is.
+    """Read a prompt from disk.
 
     Prompts are plain text files so you can edit them without touching code.
     """
-    path = Path(name_or_path)
-    if not path.suffix:
-        path = PROMPT_DIR / f"{name_or_path}.md"
-    return path.read_text(encoding="utf-8").strip()
+    return prompt_path(name_or_path).read_text(encoding="utf-8").strip()
+
+
+def describe_prompt(name_or_path: str) -> str:
+    """'prompts/system.md (sha 3fa9c21)': which file, and a short hash of its exact text.
+
+    The hash tells you whether two runs used the same prompt wording.
+    """
+    path = prompt_path(name_or_path)
+    digest = hashlib.sha256(load_prompt(name_or_path).encode("utf-8")).hexdigest()[:7]
+    try:
+        shown = path.resolve().relative_to(ROOT)
+    except ValueError:
+        shown = path
+    return f"{shown.as_posix()} (sha {digest})"

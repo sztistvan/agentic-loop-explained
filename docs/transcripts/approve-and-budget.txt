@@ -1,3 +1,11 @@
+# Recorded with an earlier version of prompts/system.md and before run headers existed,
+# so the question and flags are given here instead. Equivalent command with today's syntax:
+#   python agent.py data/sales.csv --approve --max-steps 4 "Which region underperformed in Q3 compared to Q2, and why?"
+# Question: Which region underperformed in Q3 compared to Q2, and why?
+# Behaviours: approve, max-steps 4
+# Approval answers typed in order: y, n, "use groupby instead", then y for the rest.
+# ----------------------------------------------------------------------
+
 📊 Data Analyst Agent (gpt-5.4-nano) -- dataset: data/sales.csv
    prompt: system   behaviours: approve, max_steps
 

@@ -4,8 +4,8 @@ A readable tutorial on AI agents: reasoning, context, memory and tools, with a h
 and a LangGraph version side by side.
 
 The example agent is a data analyst. It answers business questions about a CSV: it profiles the
-data, **writes and runs Python**, reads the results, **fixes its own errors**, draws charts and
-saves a report. It is built to teach how an agent works:
+data, **writes and runs Python**, reads the results, **fixes its own errors**, draws charts and,
+on request, saves a report. It is built to teach how an agent works:
 
 - what an agent is made of: **reasoning, context, memory and tools**,
 - what the **agentic loop** does, step by step,
@@ -25,14 +25,33 @@ flowchart LR
 ```bash
 pip install -r requirements.txt
 cp .env.example .env              # then fill in AZURE_BASE_URL, AZURE_MODEL, AZURE_API_KEY
-python generate_data.py           # creates data/sales.csv
+python generate_sales_data.py     # creates data/sales.csv
+python generate_factory_data.py   # creates data/factory_sensors.csv (a time series)
 
-python agent.py "Which region underperformed in Q3 compared to Q2, and why?"
-python agent.py                   # interactive; follow-up questions keep context
-python agent_manual_loop.py "..." # the same agent with a hand-written loop
+# the data file is always the first argument; any CSV works
+python agent.py data/sales.csv "Which region underperformed in Q3 compared to Q2, and why?"
+python agent.py data/factory_sensors.csv      # interactive; follow-up questions keep context
+python agent_manual_loop.py data/sales.csv "..."   # the same agent with a hand-written loop
 ```
 
-Charts go to `charts/`, reports to `reports/`. Any OpenAI-compatible endpoint works.
+Charts go to `charts/` and reports to `reports/` inside the project folder, wherever you launch the
+command from. Any OpenAI-compatible endpoint works.
+
+Every run starts with a header that records the model, the data file, the system prompt file (with
+a short hash of its text), the active flags and your question, so a saved run explains itself.
+Colors are shown in a terminal and switched off automatically when output goes to a file.
+
+### Not sure what to ask? Explore an unknown dataset in steps
+
+Start interactive (`python agent.py <your file>.csv`) and ask these one at a time:
+
+1. "What is in this dataset? Explain what each row represents and what each column means."
+2. "Check the data quality. What problems do you find, and how would you fix each one?"
+3. "How do the key metrics change over time, or across groups? Look for trends and sudden changes."
+4. "Take the most important finding and find its cause. What evidence supports it?"
+
+The full ladder, tips, and questions for both sample datasets are in
+[docs/08-example-questions.md](docs/08-example-questions.md).
 
 ## Where to look
 
@@ -45,6 +64,7 @@ Charts go to `charts/`, reports to `reports/`. Any OpenAI-compatible endpoint wo
 | Try the optional behaviours (approval, plan, review...) | [docs/05-behaviours.md](docs/05-behaviours.md) |
 | Know how the project is built and where state lives | [docs/06-architecture.md](docs/06-architecture.md) |
 | Present or extend the demo | [docs/07-demo-guide.md](docs/07-demo-guide.md) |
+| Find questions to ask, for any dataset | [docs/08-example-questions.md](docs/08-example-questions.md) |
 
 Suggested reading order for the code: `prompts/system.md` → `tools.py` → `agent_manual_loop.py`
 → `agent.py`.
@@ -60,7 +80,9 @@ Suggested reading order for the code: `prompts/system.md` → `tools.py` → `ag
 | `agent.py` | The same agent as a LangGraph graph, plus optional behaviours. |
 | `display.py` | Console output only (no agent logic). |
 | `config.py` | Environment, model client, prompt loading. |
-| `generate_data.py` | Builds the synthetic dataset with a planted story. |
+| `data/`, `charts/`, `reports/` | Generated data and agent output. Git-ignored. |
+| `generate_sales_data.py` | Builds a synthetic sales dataset (rows are orders) with a planted story. |
+| `generate_factory_data.py` | Builds a synthetic factory time series (sensor readings every 5 minutes) with a planted story. |
 
 ## Optional behaviours (`agent.py` flags, all off by default)
 

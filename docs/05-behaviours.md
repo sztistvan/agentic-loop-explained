@@ -60,7 +60,7 @@ what the model is told or sees.
 Try them together:
 
 ```bash
-python agent.py --approve --plan --review --max-steps 10 --keep-outputs 2 "Which region underperformed in Q3, and why?"
+python agent.py data/sales.csv --approve --plan --review --max-steps 10 --keep-outputs 2 "Which region underperformed in Q3, and why?"
 ```
 
 ---
@@ -182,9 +182,11 @@ to also print an estimated cost. Calls made by the planner and reviewer are incl
 ## `--prompt FILE`: prompts are configuration
 
 `prompts/system.md` is read at startup. Copy it, change it, and run
-`python agent.py --prompt prompts/my_variant.md "..."` to compare behaviour without touching code.
-Good experiments: remove the chart rules, force a different output format, or tell the agent never
-to call `save_report`.
+`python agent.py data/sales.csv --prompt prompts/my_variant.md "..."` to compare behaviour without touching code.
+The run header shows the prompt file and a short hash of its text, so you can tell which wording a
+saved run used.
+Good experiments: remove the chart rules, force a different output format, or tell the agent to
+always call `save_report`, instead of only when asked.
 
 ---
 

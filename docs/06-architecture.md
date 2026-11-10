@@ -12,8 +12,8 @@ flowchart TD
     T[tools.py<br/>tools + sandbox]
     D[display.py<br/>console output]
     P[prompts/*.md]
-    G[generate_data.py]
-    CSV[(data/sales.csv)]
+    G[generate_sales_data.py<br/>generate_factory_data.py]
+    CSV[(data/*.csv)]
     A --> C & T & D
     B --> C & T & D
     C --> P
@@ -32,16 +32,18 @@ sequenceDiagram
     participant M as main()
     participant T as tools.py
     participant G as build_graph()
-    U->>M: python agent.py "question" [flags]
+    U->>M: python agent.py data.csv "question" [flags]
     M->>T: load_dataset(csv): read CSV, build sandbox namespace (df, pd, np, plt)
     M->>G: build_graph(Settings): read prompts, bind tools to model, wire nodes and edges
     G-->>M: compiled app (with MemorySaver)
+    M->>U: print header: model, data file, prompt files with hash, flags
     M->>M: ask(app, question, thread_id)
 ```
 
 ## What happens during one question
 
-1. `ask()` builds the initial state: the question as a `HumanMessage`, counters set to zero.
+1. `ask()` echoes the question, then builds the initial state: the question as a `HumanMessage`,
+   counters set to zero.
 2. `app.stream()` runs the graph. After every node it yields `{node: output}`.
 3. `display.show_update()` prints each update (thought, code, output, final answer).
 4. If a node called `interrupt()`, the stream ends with an `__interrupt__` entry. `ask()` collects
@@ -56,6 +58,7 @@ This is the subtlest part of the design.
 |---|---|---|
 | Conversation (messages, counters) | The graph state | **Yes** |
 | Variables (`df`, `clean`, `q2`...) and files | The `NAMESPACE` dict in `tools.py` and the disk | **No** |
+| The current question and data file (for the report header) | `RUN_CONTEXT` in `tools.py` | **No** (set again for every question) |
 
 Within one process they stay in step: the model wrote `clean = ...` in an earlier turn, and the
 `clean` variable is still there. If you restored the conversation in a **new process** (say with a
@@ -78,6 +81,10 @@ a notebook-like session in a few lines, but:
 - The code runs **in your process** with your permissions: file system, network, environment.
 - There is no CPU, memory or time limit.
 - `matplotlib` is set to the headless `Agg` backend, so charts are only ever written to files.
+- Charts and reports are written next to `tools.py` (`PROJECT_ROOT`), not into the current working
+  directory, so it does not matter where you start the command. A guard on `savefig` rejects any
+  chart path outside `charts/`, because the model once saved to `../charts/`. The data file you pass in is the
+  exception: a relative path for it is resolved against where you run the command.
 
 For untrusted use, execute the code elsewhere (a container, a hosted sandbox service, a
 subprocess with limits) and keep the same tool interface. Only the body of `run_python` changes.

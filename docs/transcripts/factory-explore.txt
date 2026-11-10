@@ -1,0 +1,189 @@
+📊 Data Analyst Agent (gpt-5.4-nano) -- dataset: data/factory_sensors.csv
+   system prompt: prompts/system.md (sha b10f66f)
+   behaviours: none (plain loop)
+
+❓ Question: What is in this dataset? Explain what each row represents and what each column means, and tell me about anything unusual in the data.
+
+▶ Step 1: describe_dataset
+(no arguments)
+   tokens: in=929 out=13
+◀ output
+Rows: 47,992   Columns: 10
+Exact duplicate rows: 40
+
+Columns:
+- timestamp (str): 0 nulls, 5994 distinct, e.g. ['2026-03-02 00:00:00', '2026-03-02 00:00:00', '2026-03-02 00:00:00'], time range 2026-03-02 00:00:00 to 2026-03-22 23:55:00, typical step 0 days 00:05:00
+- machine_id (str): 0 nulls, 8 distinct, values={'M06': 6005, 'M08': 6002, 'M04': 6001, 'M07': 6000, 'M02': 5997, 'M05': 5997, 'M01': 5995, 'M03': 5995}
+- line (str): 0 nulls, 2 distinct, values={'Line 2': 24004, 'Line 1': 23988}
+- shift (str): 0 nulls, 3 distinct, values={'Day': 16144, 'Evening': 16138, 'Night': 15710}
+- temperature_c (float64): 29 nulls, 2410 distinct, min=27.43, mean=63.53, max=152.97
+- vibration_mm_s (float64): 0 nulls, 2302 distinct, min=0.164, mean=2.05, max=6.75
+- pressure_bar (float64): 0 nulls, 759 distinct, min=0.316, mean=5.91, max=6.317
+- power_kw (float64): 0 nulls, 542 distinct, min=0.69, mean=17.79, max=21.11
+- units_produced (int64): 0 nulls, 44 distinct, min=0, mean=20.33, max=46
+- status (str): 0 nulls, 3 distinct, values={'running': 47230, 'maintenance': 576, 'fault': 186}
+
+First 3 rows:
+          timestamp machine_id   line shift  temperature_c  vibration_mm_s  pressure_bar  power_kw  units_produced  status
+2026-03-02 00:00:00        M01 Line 1 Night          62.00           2.110         5.876     18.09              23 running
+2026-03-02 00:00:00        M02 Line 1 Night          64.53           2.136         6.001     17.38              13 running
+2026-03-02 00:00:00        M03 Line 1 Night          62.31           1.955         5.954     18.14              22 running
+
+▶ Step 2: run_python
+import pandas as pd, numpy as np
+# Basic structure / dtypes
+print(df.shape)
+print(df.dtypes)
+# Null counts
+print('\nNull counts:')
+print(df.isna().sum())
+# Check duplicate rows more detail
+dup = df.duplicated().sum()
+print('\nExact duplicate rows:', dup)
+# Parse timestamp for additional insights
+df_ts = df.copy()
+df_ts['timestamp'] = pd.to_datetime(df_ts['timestamp'], errors='coerce')
+print('\nParsed timestamp nulls:', df_ts['timestamp'].isna().sum())
+print('Time range:', df_ts['timestamp'].min(), 'to', df_ts['timestamp'].max())
+# Expected regular interval? compute deltas per machine
+for mid in sorted(df_ts['machine_id'].unique()):
+    sub = df_ts[df_ts['machine_id']==mid].sort_values('timestamp')
+    deltas = sub['timestamp'].diff().dropna()
+    # mode delta
+    if len(deltas):
+        mode = deltas.value_counts().index[0]
+        print(mid, 'rows', len(sub), 'delta mode', mode, 'min delta', deltas.min(), 'max delta', deltas.max())
+# Check unusual values by status and ranges
+for col in ['temperature_c','vibration_mm_s','pressure_bar','power_kw','units_produced']:
+    s = df_ts[col]
+    print(f"\n{col}: min {s.min()} max {s.max()} mean {s.mean():.3f}")
+# Units produced distribution by status
+print('\nUnits_produced by status (top counts for zeros):')
+zeros = df_ts[df_ts['units_produced']==0]['status'].value_counts()
+print(zeros)
+print('\nStatus counts:')
+print(df_ts['status'].value_counts())
+# Check if any impossible combos: status fault with running machine? (not possible), but check NaN and outliers
+# Correlation quick glance
+num_cols = ['temperature_c','vibration_mm_s','pressure_bar','power_kw','units_produced']
+print('\nNumeric correlation matrix (rounded):')
+print(df_ts[num_cols].corr().round(2))
+
+   tokens: in=1,593 out=512
+◀ output
+(47992, 10)
+timestamp             str
+machine_id            str
+line                  str
+shift                 str
+temperature_c     float64
+vibration_mm_s    float64
+pressure_bar      float64
+power_kw          float64
+units_produced      int64
+status                str
+dtype: object
+
+Null counts:
+timestamp          0
+machine_id         0
+line               0
+shift              0
+temperature_c     29
+vibration_mm_s     0
+pressure_bar       0
+power_kw           0
+units_produced     0
+status             0
+dtype: int64
+
+Exact duplicate rows: 40
+
+Parsed timestamp nulls: 0
+Time range: 2026-03-02 00:00:00 to 2026-03-22 23:55:00
+M01 rows 5995 delta mode 0 days 00:05:00 min delta 0 days 00:00:00 max delta 0 days 04:35:00
+M02 rows 5997 delta mode 0 days 00:05:00 min delta 0 days 00:00:00 max delta 0 days 04:35:00
+M03 rows 5995 delta mode 0 days 00:05:00 min delta 0 days 00:00:00 max delta 0 days 04:35:00
+M04 rows 6001 delta mode 0 days 00:05:00 min delta 0 days 00:00:00 max delta 0 days 04:35:00
+M05 rows 5997 delta mode 0 days 00:05:00 min delta 0 days 00:00:00 max delta 0 days 04:35:00
+M06 rows 6005 delta mode 0 days 00:05:00 min delta 0 days 00:00:00 max delta 0 days 04:35:00
+M07 rows 6000 delta mode 0 days 00:05:00 min delta 0 days 00:00:00 max delta 0 days 04:35:00
+M08 rows 6002 delta mode 0 days 00:05:00 min delta 0 days 00:00:00 max delta 0 days 04:35:00
+
+temperature_c: min 27.43 max 152.97 mean 63.530
+
+vibration_mm_s: min 0.164 max 6.75 mean 2.051
+
+pressure_bar: min 0.316 max 6.317 mean 5.913
+
+power_kw: min 0.69 max 21.11 mean 17.789
+
+units_produced: min 0 max 46 mean 20.326
+
+Units_produced by status (top counts for zeros):
+status
+maintenance    576
+fault          186
+Name: count, dtype: int64
+
+Status counts:
+status
+running        47230
+maintenance      576
+fault            186
+Name: count, dtype: int64
+
+Numeric correlation matrix (rounded):
+                temperature_c  vibration_mm_s  ...  power_kw  units_produced
+temperature_c            1.00            0.21  ...      0.34            0.13
+vibration_mm_s           0.21            1.00  ...      0.44            0.14
+pressure_bar             0.34            0.42  ...      0.95            0.45
+power_kw                 0.34            0.44  ...      1.00            0.42
+units_produced           0.13            0.14  ...      0.42            1.00
+
+[5 rows x 5 columns]
+
+══════════════════════════════════════════════════════════════════════
+✅ FINAL ANSWER
+══════════════════════════════════════════════════════════════════════
+## What’s in this dataset?
+You have **47,992 rows** and **10 columns**. The data looks like **time-series telemetry and production records** coming from **8 machines** across **2 production lines** over a window of **2026-03-02 00:00:00 to 2026-03-22 23:55:00**.
+
+### What each row represents
+**One record per machine at a specific timestamp**, capturing:
+- the machine’s operating sensor readings (temperature, vibration, pressure, power),
+- how many units were produced at that time,
+- and the machine’s operational **status** (running / maintenance / fault),
+plus contextual labels (**line** and **shift**).
+
+### What each column means
+- **timestamp (str)**: Date-time of the observation (granularity appears to be ~5 minutes).
+- **machine_id (str)**: Machine identifier (8 distinct values: `M01`–`M08`).
+- **line (str)**: Production line (`Line 1` or `Line 2`).
+- **shift (str)**: Work shift (`Day`, `Evening`, `Night`).
+- **temperature_c (float64)**: Temperature reading in °C (29 missing values).
+- **vibration_mm_s (float64)**: Vibration reading in mm/s.
+- **pressure_bar (float64)**: Pressure reading in bar.
+- **power_kw (float64)**: Power consumption in kW.
+- **units_produced (int64)**: Units produced during that interval (integer; ranges 0–46).
+- **status (str)**: Machine state at the time (`running`, `maintenance`, `fault`).
+
+## Unusual / notable things in the data
+- **Exact duplicate rows: 40**
+  - The dataset contains **40 fully identical rows** (exact matches across all columns).
+- **Missing values**
+  - Only **temperature_c has nulls: 29 rows**.
+- **High regular sampling, but not perfectly consistent**
+  - For each machine, the most common time step is **5 minutes**.
+  - There are **some gaps** up to about **4 hours 35 minutes** for individual machines (i.e., not every machine has a perfectly continuous 5-minute cadence).
+- **Status + production context**
+  - There are **576 `maintenance` rows** and **186 `fault` rows** (vs **47,230 `running`**).
+  - `units_produced` can be **0** and appears in maintenance/fault as well (not necessarily “wrong”, but it’s something to account for when analyzing production vs operating state).
+- **Sensor behavior ranges are plausible, but temperature has extremes**
+  - `temperature_c` ranges from **27.43** to **152.97 °C**.
+  - That upper value is notably high relative to the mean (**~63.53 °C**), so it may represent real events or measurement spikes.
+
+If you want, I can also summarize the distribution of sensor readings by **status** (running vs maintenance vs fault) to help identify what changes during faults.
+   tokens: in=2,931 out=655
+
+📈 model calls: 3   tokens in: 5,453   out: 1,180

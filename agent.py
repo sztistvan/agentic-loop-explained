@@ -3,7 +3,7 @@ Data Analyst Agent -- a LangGraph tutorial.
 
 The agent answers business questions about a CSV by calling tools: it profiles
 the data, writes and runs Python, reads the output, fixes its own errors, makes
-charts and saves a report.
+charts and, when asked, saves a report.
 
 KEY CONCEPTS (each one maps to a numbered section below)
 
@@ -33,9 +33,9 @@ THE GRAPH (with every flag on)
 agent_manual_loop.py is the same loop without LangGraph; docs/ compares them.
 
 Usage:
-    python agent.py "Which region underperformed in Q3, and why?"
-    python agent.py                       # interactive, follow-ups keep context
-    python agent.py --approve --plan --review --max-steps 10 --keep-outputs 2 "..."
+    python agent.py data/sales.csv "Which region underperformed in Q3, and why?"
+    python agent.py data/sales.csv        # interactive, follow-ups keep context
+    python agent.py data/sales.csv --approve --plan --review --max-steps 10 --keep-outputs 2 "..."
 """
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ from langgraph.types import Command, interrupt
 
 import display
 from config import MODEL, load_prompt, make_llm
-from tools import TOOLS, load_dataset
+from tools import TOOLS, load_dataset, set_question
 
 MAX_REVISIONS = 1  # how many times the reviewer may send the answer back
 
@@ -265,6 +265,8 @@ def ask(app, question: str, thread_id: str) -> None:
     payload = {"messages": [HumanMessage(question)], "steps": 0, "reviews": 0, "review_ok": False}
     USAGE.reset()
     step = 0
+    display.show_question(question)
+    set_question(question)  # so save_report can record it in the report header
 
     while True:
         pending = None
@@ -288,8 +290,8 @@ def ask(app, question: str, thread_id: str) -> None:
 def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8")
     p = argparse.ArgumentParser(description="LangGraph data analyst agent")
+    p.add_argument("data", help="path to the CSV file to analyse")
     p.add_argument("question", nargs="?", help="question to ask (omit for interactive mode)")
-    p.add_argument("--csv", default="data/sales.csv", help="path to the dataset")
     p.add_argument("--prompt", default="system", help="system prompt: name in prompts/ or a .md path")
     p.add_argument("--approve", action="store_true", help="ask before running each piece of code")
     p.add_argument("--plan", action="store_true", help="write a plan before acting")
@@ -299,15 +301,22 @@ def main() -> None:
     a = p.parse_args()
 
     try:
-        load_dataset(a.csv)
+        load_dataset(a.data)
     except FileNotFoundError:
-        raise SystemExit(f"{a.csv} not found. Run `python generate_data.py` first.")
+        raise SystemExit(
+            f"{a.data} not found. Generate a sample dataset with "
+            "`python generate_sales_data.py` or `python generate_factory_data.py`."
+        )
 
     settings = Settings(a.approve, a.plan, a.review, a.max_steps, a.keep_outputs, a.prompt)
     app = build_graph(settings)
     on = [f for f, v in vars(settings).items() if v and f != "prompt"]
-    print(f"{display.C.BOLD}📊 Data Analyst Agent{display.C.END} ({MODEL}) -- dataset: {a.csv}")
-    print(f"   prompt: {a.prompt}   behaviours: {', '.join(on) or 'none (plain loop)'}")
+    prompts = {"system": a.prompt}
+    if settings.plan:
+        prompts["planner"] = "planner"
+    if settings.review:
+        prompts["reviewer"] = "reviewer"
+    display.show_header("Data Analyst Agent", MODEL, a.data, prompts, ", ".join(on) or "none (plain loop)")
 
     if a.question:
         ask(app, a.question, thread_id="cli")

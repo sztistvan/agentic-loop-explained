@@ -8,15 +8,48 @@ Both agents call show_message() so you can watch the loop happen:
 """
 from __future__ import annotations
 
+import os
+import sys
+
 from langchain_core.messages import AIMessage, ToolMessage
 
-from config import PRICE_INPUT_PER_M, PRICE_OUTPUT_PER_M
+from config import PRICE_INPUT_PER_M, PRICE_OUTPUT_PER_M, describe_prompt
+
+
+def _use_color() -> bool:
+    """Colors in a terminal; plain text when output is redirected to a file or pipe.
+
+    NO_COLOR=1 switches colors off everywhere; FORCE_COLOR=1 keeps them (e.g. for `| less -R`).
+    """
+    if os.environ.get("FORCE_COLOR"):
+        return True
+    if os.environ.get("NO_COLOR"):
+        return False
+    return sys.stdout.isatty()
 
 
 class C:
     BLUE, GREEN, YELLOW, RED, GREY, BOLD, END = (
-        "\033[94m", "\033[92m", "\033[93m", "\033[91m", "\033[90m", "\033[1m", "\033[0m",
+        ("\033[94m", "\033[92m", "\033[93m", "\033[91m", "\033[90m", "\033[1m", "\033[0m")
+        if _use_color()
+        else ("",) * 7
     )
+
+
+def show_header(title: str, model: str, dataset: str, prompts: dict[str, str], behaviours: str) -> None:
+    """Say what is running: model, data, which prompt files (with a short hash), which flags.
+
+    Saved output therefore records its own setup. `prompts` maps a label to a prompt name or path.
+    """
+    print(f"{C.BOLD}📊 {title}{C.END} ({model}) -- dataset: {dataset}")
+    for label, prompt in prompts.items():
+        print(f"   {label} prompt: {describe_prompt(prompt)}")
+    print(f"   behaviours: {behaviours}")
+
+
+def show_question(question: str) -> None:
+    """Echo the question, so a saved run shows what was asked."""
+    print(f"\n{C.BOLD}❓ Question:{C.END} {question}")
 
 
 def text_of(msg) -> str:

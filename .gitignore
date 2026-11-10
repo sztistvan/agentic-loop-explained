@@ -1,6 +1,7 @@
 #ignore data and charts
 /data
 /charts
+/charts_old
 
 # secrets
 .env
@@ -9,3 +10,7 @@
 /backup
 
 /reports
+/reports_old
+
+/__pycache__
+*.pyc

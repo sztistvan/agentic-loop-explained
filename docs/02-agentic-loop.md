@@ -86,7 +86,9 @@ back (`[charts saved: ...]`).
 
 ### Turn 11: save the report
 
-The model called `save_report` with a Markdown write-up, and the tool returned the file path.
+The model called `save_report` with a Markdown write-up, and the tool returned the file path. (In
+this recording the agent saved a report on its own, because the prompt of that time told it to
+always do so. Today the prompt says to save one only when the user asks for a report.)
 
 ### Turn 12: final answer
 

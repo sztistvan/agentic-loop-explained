@@ -138,8 +138,8 @@ Rules worth knowing:
 | Tool | Arguments | Character | Why it is here |
 |---|---|---|---|
 | `run_python` | `code` | General, powerful, open-ended | One tool that can do any analysis. Returns output and tracebacks. |
-| `describe_dataset` | none | Narrow, safe, deterministic | A cheap, reliable first step. Shows that a specific tool beats general code for a known job. |
-| `save_report` | `title`, `markdown` | Has a side effect (writes a file) | Shows a tool that *does* something, not only reads. A natural place for approval in a real system. |
+| `describe_dataset` | none | Narrow, safe, deterministic | A cheap, reliable first step. Shows that a specific tool beats general code for a known job. It also reports the time range of any date-like column. |
+| `save_report` | `title`, `markdown` | Has a side effect (writes a file) | Shows a tool that *does* something, not only reads. Called **only when the user asks** for a report; a natural place for approval in a real system. |
 
 The prompt tells the model which to use when ("Explore first: call `describe_dataset`"). The model
 chooses among tools by reading their descriptions, so the choice is a language problem, not code.
@@ -152,8 +152,18 @@ chooses among tools by reading their descriptions, so the choice is a language p
 | **Errors returned, not raised** | The traceback becomes the tool result; the model reads it and fixes its code. Self-correction comes from this. |
 | **`print()` capture** | Only what is printed is returned, so the model controls how much it reads. |
 | **Output truncated at 6,000 chars** | A huge print would be re-sent on every later turn. |
-| **New charts reported** | The tool appends `[charts saved: ...]` so the model can cite exact paths. |
+| **New charts reported** | The tool appends `[charts saved: charts/<name>.png]` so the model can cite exact paths. |
+| **Charts may only go to `CHART_DIR`** | A guard around matplotlib's `savefig` raises an error for any other path, and the error tells the model the correct call. This was added after a real bug: the model saved charts to `../charts/` and they landed outside the project. A prompt rule alone was not enough, so the tool now checks, and the error is fed back like any other traceback. |
 | **`exec` in-process** | Simple, but **not a sandbox**. See the safety note below. |
+
+## Design choices in `save_report`
+
+| Choice | Reason |
+|---|---|
+| **Called only on request** | The tool description and `prompts/system.md` say to save a report only if the user asks for one ("...and save a report"). A tool with a side effect should not fire unasked. The model follows this most of the time, but it is an instruction, not a guarantee. |
+| **The question is added by code** | The model only supplies `title` and `markdown`. The tool prepends a header with the exact question, the data file and the date, taken from `RUN_CONTEXT` in `tools.py`, which the agent loop fills in for every question. Facts that must be right are better written by code than left to the model. |
+| **One path form for charts** | The model always writes charts as `charts/<name>.png`, the same form `run_python` prints. `save_report` adds the `../` needed inside a file in `reports/`. Giving the model two forms (one for saving, one for linking) is what caused the bug above: it copied the link form, `../charts/`, as a save path. |
+| **Path returned relative to the project** | Short for the model to quote, and it does not depend on where you launched the command. |
 
 ## Adding your own tool
 
