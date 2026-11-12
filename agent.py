@@ -54,7 +54,7 @@ import display
 from config import MODEL, load_prompt, make_llm
 from tools import TOOLS, load_dataset, set_question
 
-MAX_REVISIONS = 1  # how many times the reviewer may send the answer back
+MAX_REVIEWS = 1  # reviews per question: the agent may revise once, and the revision is not reviewed again
 
 
 @dataclass
@@ -220,7 +220,7 @@ def build_graph(s: Settings):
         last = state["messages"][-1]
         if last.tool_calls:                       # the model asked for a tool
             return "approval" if s.approve else "tools"
-        if s.review and state.get("reviews", 0) < MAX_REVISIONS:
+        if s.review and state.get("reviews", 0) < MAX_REVIEWS:
             return "review"                       # review once; the agent then gets one chance to revise
         return END                                # plain text = the final answer
 
