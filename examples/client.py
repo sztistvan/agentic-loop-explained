@@ -14,15 +14,20 @@ from openai import OpenAI
 load_dotenv()  # finds the .env file in the project folder
 
 
-def _require(name: str) -> str:
-    value = os.environ.get(name)
+# Same provider switch as config.py: LLM_PROVIDER=openrouter reads OPENROUTER_BASE_URL, _API_KEY, _MODEL.
+PROVIDER = os.environ.get("LLM_PROVIDER", "azure").strip().lower()
+
+
+def _setting(name: str) -> str:
+    var = f"{PROVIDER.upper()}_{name}"
+    value = os.environ.get(var)
     if not value:
-        raise SystemExit(f"Missing {name}. Copy .env.example to .env and fill it in.")
+        raise SystemExit(f"Missing {var} (LLM_PROVIDER={PROVIDER}). Add it to .env, see .env.example.")
     return value
 
 
-MODEL = _require("AZURE_MODEL")
-client = OpenAI(base_url=_require("AZURE_BASE_URL"), api_key=_require("AZURE_API_KEY"))
+MODEL = _setting("MODEL")
+client = OpenAI(base_url=_setting("BASE_URL"), api_key=_setting("API_KEY"))
 
 
 def assistant_message(message) -> dict:

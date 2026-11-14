@@ -24,7 +24,7 @@ flowchart LR
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env              # then fill in AZURE_BASE_URL, AZURE_MODEL, AZURE_API_KEY
+cp .env.example .env              # then fill in the settings of the provider you use
 python generate_sales_data.py     # creates data/sales.csv
 python generate_factory_data.py   # creates data/factory_sensors.csv (a time series)
 
@@ -36,6 +36,17 @@ python agent_manual_loop.py data/sales.csv "..."   # the same agent with a hand-
 
 Charts go to `charts/` and reports to `reports/` inside the project folder, wherever you launch the
 command from. Any OpenAI-compatible endpoint works.
+
+**Choosing the LLM provider.** `.env` has one block of settings per provider (`AZURE_*`, `OPENROUTER_*`,
+`LMSTUDIO_*`), and the line `LLM_PROVIDER` picks the active one. No code changes. To try another
+provider for a single run, set it in front of the command:
+
+```bash
+LLM_PROVIDER=lmstudio python agent.py data/sales.csv "Which region underperformed in Q3, and why?"
+```
+
+The run header shows the model and provider used. Tool calling must work for the agent to work, and
+small local or free models can be unreliable at it.
 
 Every run starts with a header that records the model, the data file, the system prompt file (with
 a short hash of its text), the active flags and your question, so a saved run explains itself.

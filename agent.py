@@ -51,7 +51,7 @@ from langgraph.prebuilt import ToolNode
 from langgraph.types import Command, interrupt
 
 import display
-from config import MODEL, load_prompt, make_llm
+from config import MODEL_LABEL, load_prompt, make_llm
 from tools import TOOLS, load_dataset, set_question
 
 MAX_REVIEWS = 1  # reviews per question: the agent may revise once, and the revision is not reviewed again
@@ -316,7 +316,7 @@ def main() -> None:
         prompts["planner"] = "planner"
     if settings.review:
         prompts["reviewer"] = "reviewer"
-    display.show_header("Data Analyst Agent", MODEL, a.data, prompts, ", ".join(on) or "none (plain loop)")
+    display.show_header("Data Analyst Agent", MODEL_LABEL, a.data, prompts, ", ".join(on) or "none (plain loop)")
 
     if a.question:
         ask(app, a.question, thread_id="cli")

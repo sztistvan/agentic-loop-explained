@@ -25,7 +25,7 @@ import sys
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 
 import display
-from config import MODEL, load_prompt, make_llm
+from config import MODEL_LABEL, load_prompt, make_llm
 from tools import TOOLS, load_dataset, set_question
 
 MAX_STEPS = 15  # safety net so a confused model cannot loop forever
@@ -76,7 +76,7 @@ def main() -> None:
     llm = make_llm().bind_tools(TOOLS)       # the model, told about the tools
     system_prompt = load_prompt("system")
     history: list = []                       # the agent's entire memory
-    display.show_header("Data Analyst Agent (manual loop)", MODEL, a.data, {"system": "system"}, "none (manual loop)")
+    display.show_header("Data Analyst Agent (manual loop)", MODEL_LABEL, a.data, {"system": "system"}, "none (manual loop)")
 
     if a.question:
         run_agent(llm, system_prompt, history, a.question)

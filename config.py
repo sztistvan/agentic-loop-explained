@@ -19,20 +19,36 @@ ROOT = Path(__file__).parent
 PROMPT_DIR = ROOT / "prompts"
 
 
-def _require(name: str) -> str:
-    value = os.environ.get(name)
+# Which LLM provider to use. Each provider has its own block of settings in .env, named after it:
+#   LLM_PROVIDER=openrouter  ->  OPENROUTER_BASE_URL, OPENROUTER_API_KEY, OPENROUTER_MODEL
+# Any OpenAI-compatible endpoint works. To switch, change this one line (or set it for one run:
+#   LLM_PROVIDER=lmstudio python agent.py data/sales.csv). Without it, "azure" is used.
+PROVIDER = os.environ.get("LLM_PROVIDER", "azure").strip().lower()
+
+
+def _setting(name: str) -> str:
+    """The value of this provider's setting, e.g. name='MODEL' -> OPENROUTER_MODEL."""
+    var = f"{PROVIDER.upper()}_{name}"
+    value = os.environ.get(var)
     if not value:
-        raise SystemExit(f"Missing {name}. Copy .env.example to .env and fill it in.")
+        raise SystemExit(f"Missing {var} (LLM_PROVIDER={PROVIDER}). Add it to .env, see .env.example.")
     return value
 
 
-BASE_URL = _require("AZURE_BASE_URL")
-API_KEY = _require("AZURE_API_KEY")
-MODEL = _require("AZURE_MODEL")
+BASE_URL = _setting("BASE_URL")
+API_KEY = _setting("API_KEY")
+MODEL = _setting("MODEL")
+MODEL_LABEL = f"{MODEL} via {PROVIDER}"  # what the run header shows
 
-# Optional: price per 1M tokens, only used to print a cost estimate.
-PRICE_INPUT_PER_M = float(os.getenv("PRICE_INPUT_PER_M", "0"))
-PRICE_OUTPUT_PER_M = float(os.getenv("PRICE_OUTPUT_PER_M", "0"))
+
+def _price(name: str) -> float:
+    """Optional price per 1M tokens, only used to print a cost estimate.
+    A provider-specific value (AZURE_PRICE_INPUT_PER_M) wins over the global one (PRICE_INPUT_PER_M)."""
+    return float(os.getenv(f"{PROVIDER.upper()}_{name}") or os.getenv(name) or 0)
+
+
+PRICE_INPUT_PER_M = _price("PRICE_INPUT_PER_M")
+PRICE_OUTPUT_PER_M = _price("PRICE_OUTPUT_PER_M")
 
 
 def make_llm() -> ChatOpenAI:
