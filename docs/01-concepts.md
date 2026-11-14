@@ -3,7 +3,9 @@
 ## What is an agent?
 
 A plain LLM call is one question and one answer. An **agent** is an LLM placed in a **loop** with
-**tools**, so it can act, look at what happened, and decide what to do next.
+**tools**, so it can act, look at what happened, and decide what to do next. How this relates to
+the words *LLM*, *harness*, *workflow* and *session* is in
+[Terminology](#terminology-how-the-words-relate).
 
 ## The four building blocks
 
@@ -55,6 +57,62 @@ It is a file (`prompts/system.md`) so you can change the agent's behaviour witho
 and it is kept free of dataset-specific facts: what the data contains comes from the tools
 (`describe_dataset`), not from the prompt.
 
+## Terminology: how the words relate
+
+These words are used loosely in the field. Below is how this tutorial uses them, with the four
+building blocks above as the definition of an agent, and how Anthropic uses the same words. In
+short: the **LLM** reasons; the **harness** gives it context, memory and tools and runs the loop;
+together they are the **agent**.
+
+```mermaid
+flowchart TB
+    subgraph Agent["Agent = LLM + harness"]
+        LLM["LLM<br/>(Reasoning)"]
+        subgraph Harness["Harness: the software around the model"]
+            Loop["Agentic loop"]
+            Ctx["Context"]
+            Mem[("Memory")]
+            Tls["Tools"]
+        end
+        LLM <--> Loop
+        Loop --> Ctx
+        Loop --> Tls
+        Ctx <--> Mem
+    end
+    Sess(["Session: one conversation"]) -.- Agent
+    Wf["Workflow steps: --plan, --review<br/>(fixed in code)"] -.- Harness
+```
+
+| Term | In this tutorial | Anthropic's usage |
+|---|---|---|
+| **LLM** | The model alone. It is the **Reasoning** block: it decides the next step and can request a tool, but it runs nothing and remembers nothing between calls. | A component inside the harness. In Claude Code, Claude is the model inside the harness ([glossary](https://code.claude.com/docs/en/glossary)). |
+| **Agent** | The four building blocks working together in a loop: Reasoning, Context, Memory, Tools. In code, the model plus the harness. | The LLM directs its own steps and tool use ([Building effective agents](https://www.anthropic.com/engineering/building-effective-agents)). A short form from a later post: an LLM using tools in a loop ([context engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)). |
+| **Agentic loop** | The model decides, a tool runs, the result goes back into the context, and this repeats until the model answers in plain text. `--max-steps` is the safety stop. | Gather context, act, verify, repeat ([glossary](https://code.claude.com/docs/en/glossary), [Agent SDK post](https://claude.com/blog/building-agents-with-the-claude-agent-sdk)). Feedback from the environment at each step, stopping conditions and human checkpoints are covered in [Building effective agents](https://www.anthropic.com/engineering/building-effective-agents). |
+| **Workflow** | LLM calls on a path fixed in code. The default loop is not one, because the model chooses its own tool calls. `--plan` and `--review` add fixed steps, so with them on this tutorial is a hybrid. | LLMs and tools orchestrated through predefined code paths. Workflows and agents together are called agentic systems ([Building effective agents](https://www.anthropic.com/engineering/building-effective-agents)). |
+| **Harness** | Everything around the model: `agent.py` or `agent_manual_loop.py`, plus `tools.py`, the prompts and the display. It provides the tools, manages context and memory, runs the loop and executes the tools. | The layer around the model that supplies tools, manages context and runs the loop. In Claude Code, Claude Code is the harness ([glossary](https://code.claude.com/docs/en/glossary), [how it works](https://code.claude.com/docs/en/how-claude-code-works), [evals post](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)). |
+| **Session** | One conversation, identified by a `thread_id`. Interactive mode is one session; a new command starts a new one. Its history is the short-term **Memory** block, kept in RAM. | Used in two ways. In Claude Code, a conversation with its own context window ([glossary](https://code.claude.com/docs/en/glossary)). In Managed Agents, a durable log that lives outside the context window ([Managed Agents](https://www.anthropic.com/engineering/managed-agents)). |
+
+### Where the usage differs
+
+- **"Agent" is used at two levels.** Behaviourally: the model directs its own steps, as opposed to a
+  workflow. Structurally: model plus harness (the evals post), or session plus harness plus sandbox
+  (the Managed Agents post).
+- **LLM and model are not defined separately.** The sources use them interchangeably.
+- **The four building blocks are a teaching framing, not Anthropic's wording.** They are common in
+  the field and fit Anthropic's view of an LLM augmented with retrieval, tools and memory, and its
+  writing on context. The two views are compatible, not identical.
+- **"Building effective agents" dates from December 2024.** It notes that parts of it are dated, so
+  the loop and harness definitions above lean on the later pages.
+
+### Sources
+
+- [Building effective agents](https://www.anthropic.com/engineering/building-effective-agents) (Dec 2024)
+- [Effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) (Sep 2025)
+- [Building agents with the Claude Agent SDK](https://claude.com/blog/building-agents-with-the-claude-agent-sdk) (Sep 2025)
+- [Demystifying evals for AI agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents) (Jan 2026)
+- [Scaling Managed Agents](https://www.anthropic.com/engineering/managed-agents) (Apr 2026)
+- [Claude Code glossary](https://code.claude.com/docs/en/glossary) and [How Claude Code works](https://code.claude.com/docs/en/how-claude-code-works)
+
 ## Vocabulary
 
 | Term | Meaning here |
@@ -63,11 +121,10 @@ and it is kept free of dataset-specific facts: what the data contains comes from
 | **Tool call** | An `AIMessage` that contains a request like "call `run_python` with `code=...`" instead of (or next to) text. It has an `id`. |
 | **Tool result** | A `ToolMessage` carrying the function's return value, matched to the call by `tool_call_id`. |
 | **State** | The data the loop carries from step to step. Here: the list of messages (plus a few counters). |
-| **Agentic loop** | Repeat: call model → if it asked for tools, run them and append results → call model again. Stop when it answers in text. |
-| **Termination** | The loop ends when the model replies without tool calls. A step limit protects against loops that never end. |
+| **Termination** | The agentic loop ends when the model replies without tool calls. A step limit protects against loops that never end. |
 | **Context** | Everything the model is given for one call: instructions, history, tool results. |
 | **Context window** | The maximum text the model can read in one call. The whole history must fit. |
-| **Thread** | One conversation, identified by a `thread_id`. |
+| **Thread** | One conversation, identified by a `thread_id`. This project's implementation of a *session* (see [Terminology](#terminology-how-the-words-relate)). |
 | **Checkpointer** | Saves the state after each step, keyed by thread, so a later question continues the conversation. |
 | **Sandbox** | The place where model-written code runs. |
 

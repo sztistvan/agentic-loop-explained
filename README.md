@@ -57,7 +57,7 @@ The full ladder, tips, and questions for both sample datasets are in
 
 | You want to... | Read |
 |---|---|
-| Understand the vocabulary (agent, tool, state, memory...) | [docs/01-concepts.md](docs/01-concepts.md) |
+| Understand the key terms (LLM, agent, agentic loop, workflow, harness, session) and the vocabulary | [docs/01-concepts.md](docs/01-concepts.md) |
 | See one real run, message by message | [docs/02-agentic-loop.md](docs/02-agentic-loop.md) |
 | Compare the LangGraph and hand-written loops | [docs/03-langgraph-vs-manual.md](docs/03-langgraph-vs-manual.md) |
 | Learn how tools are defined and called | [docs/04-tools.md](docs/04-tools.md) |
