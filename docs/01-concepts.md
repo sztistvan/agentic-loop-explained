@@ -1,5 +1,8 @@
 # 1. Concepts
 
+New to this? [0. From one LLM call to an agent](00-from-llm-call-to-agent.md) builds an agent in seven
+runnable steps; this page then names the pieces.
+
 ## What is an agent?
 
 A plain LLM call is one question and one answer. An **agent** is an LLM placed in a **loop** with

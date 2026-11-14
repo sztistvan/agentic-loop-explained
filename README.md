@@ -57,6 +57,7 @@ The full ladder, tips, and questions for both sample datasets are in
 
 | You want to... | Read |
 |---|---|
+| Build an agent step by step, starting from one plain LLM call | [docs/00-from-llm-call-to-agent.md](docs/00-from-llm-call-to-agent.md) |
 | Understand the key terms (LLM, agent, agentic loop, workflow, harness, session) and the vocabulary | [docs/01-concepts.md](docs/01-concepts.md) |
 | See one real run, message by message | [docs/02-agentic-loop.md](docs/02-agentic-loop.md) |
 | Compare the LangGraph and hand-written loops | [docs/03-langgraph-vs-manual.md](docs/03-langgraph-vs-manual.md) |
@@ -66,8 +67,8 @@ The full ladder, tips, and questions for both sample datasets are in
 | Present or extend the demo | [docs/07-demo-guide.md](docs/07-demo-guide.md) |
 | Find questions to ask, for any dataset | [docs/08-example-questions.md](docs/08-example-questions.md) |
 
-Suggested reading order for the code: `prompts/system.md` → `tools.py` → `agent_manual_loop.py`
-→ `agent.py`.
+Suggested reading order for the code: the `examples/` scripts (steps 1 to 7), then `prompts/system.md`
+→ `tools.py` → `agent_manual_loop.py` → `agent.py`.
 
 ## Files
 
@@ -80,6 +81,7 @@ Suggested reading order for the code: `prompts/system.md` → `tools.py` → `ag
 | `agent.py` | The same agent as a LangGraph graph, plus optional behaviours. |
 | `display.py` | Console output only (no agent logic). |
 | `config.py` | Environment, model client, prompt loading. |
+| `examples/` | Seven small scripts that build an agent step by step with the plain `openai` SDK (see doc 00). |
 | `data/`, `charts/`, `reports/` | Generated data and agent output. Git-ignored. |
 | `generate_sales_data.py` | Builds a synthetic sales dataset (rows are orders) with a planted story. |
 | `generate_factory_data.py` | Builds a synthetic factory time series (sensor readings every 5 minutes) with a planted story. |
