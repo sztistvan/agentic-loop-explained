@@ -102,6 +102,7 @@ Full transcripts, all in [transcripts/](transcripts/):
 | [factory-explore.txt](transcripts/factory-explore.txt) | factory | exploring an unknown dataset |
 | [factory-diagnose.txt](transcripts/factory-diagnose.txt) | factory | one question that gets the wrong machine |
 | [factory-followups.txt](transcripts/factory-followups.txt) | factory | a session with follow-up questions |
+| [guardrails-*.txt](transcripts/) (ten files) | sales, poisoned | off-topic and rule-changing requests under each defence, the guard on borderline messages, and the indirect injection demo; explained in [09-guardrails.md](09-guardrails.md) |
 
 The four sales transcripts were recorded before the run header existed and with an earlier
 version of the system prompt; each carries a note at the top giving the question and flags that

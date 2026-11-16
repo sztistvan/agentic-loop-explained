@@ -77,6 +77,7 @@ The full ladder, tips, and questions for both sample datasets are in
 | Know how the project is built and where state lives | [docs/06-architecture.md](docs/06-architecture.md) |
 | Present or extend the demo | [docs/07-demo-guide.md](docs/07-demo-guide.md) |
 | Find questions to ask, for any dataset | [docs/08-example-questions.md](docs/08-example-questions.md) |
+| Keep an agent on topic: scope, guardrails, prompt injection (with demos) | [docs/09-guardrails.md](docs/09-guardrails.md) |
 
 Suggested reading order for the code: the `examples/` scripts (steps 1 to 7), then `prompts/system.md`
 → `tools.py` → `agent_manual_loop.py` → `agent.py`.
@@ -90,12 +91,14 @@ Suggested reading order for the code: the `examples/` scripts (steps 1 to 7), th
 | `tools.py` | The three tools (`describe_dataset`, `run_python`, `save_report`) and the sandbox. |
 | `agent_manual_loop.py` | The loop in ~20 lines of plain Python. |
 | `agent.py` | The same agent as a LangGraph graph, plus optional behaviours. |
+| `agent_guarded.py` | The same agent behind an input guard that blocks off-topic and rule-changing requests (see doc 09). |
 | `display.py` | Console output only (no agent logic). |
 | `config.py` | Environment, model client, prompt loading. |
 | `examples/` | Seven small scripts that build an agent step by step with the plain `openai` SDK (see doc 00). |
 | `data/`, `charts/`, `reports/` | Generated data and agent output. Git-ignored. |
 | `generate_sales_data.py` | Builds a synthetic sales dataset (rows are orders) with a planted story. |
 | `generate_factory_data.py` | Builds a synthetic factory time series (sensor readings every 5 minutes) with a planted story. |
+| `generate_poisoned_data.py` | Builds a small sales file with one planted instruction in a text column (prompt injection demo, doc 09). |
 
 ## Optional behaviours (`agent.py` flags, all off by default)
 
